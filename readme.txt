@@ -9,9 +9,9 @@ UML deployment
 | Arduino   |           |
 |  +------------------+---A1--> 5:1 current divider --> 12v (0 to 16.5v range) battery source
 |  |VanPowerMeter.ino +---A2--> 5:1 current divider --> potentiometer --> (0 to >16.5v range) battery source 
-|  |                  +---A3--> current sensor (3.3v logic, 1.676v is 0amps)  --> Battery positive lead
-|  |                  +---A3--> current sensor (3.3v logic, 1.676v is 0amps)  --> Solar panel positive lead 
-|  +------------------+---GND--> Ground of battery
+|  |                  +---A6--> current sensor (3.3v logic, 1.676v is 0amps)  --> Battery positive lead
+|  |                  +---A7--> current sensor (3.3v logic, 1.676v is 0amps)  --> Solar panel positive lead 
+|  +------------------+---GND--> Ground of to each of the sensors
 |           |           |
 |           V           |
 |  +------------------+ |
