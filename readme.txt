@@ -22,21 +22,33 @@ UML deployment
             V
     +------Wifi Network----+
     |                      |
+---------------------------------------- On battery bank power
+---------------------------------------- On main home power
+    |                      |
     V                      V
 +-----+    +----------------------------------------------------------------------------+
 | NTP |    | Linux Server                                                               |
 +-----+    | +---------+   +-----------------------------+   +----------------------+   |
            | | Crontab |-->| pollpowerarduino.sh         |   | Createpowerdb.my.sql |   |
            | +---------+   +-----------------------------+   +----------------------+   |
-           |                   |          |           |           | Install Tables      |
-           |                   V          V           V           V                     |
-           |               +------+   +-------+   +-----------------------------+       |
-           |               | Bash |   | curl  |   | MySQL                       |       |
-           |               +------+   +---|---+   +-----------------------------+       |
-           +------------------------------|---------------------------------------------+
-                                          |
-                                          V
-                                      192.168.1.200 (Presumably the Arduino above)
+           |                   |          |      |     |           | Install Tables     |
+           |                   V          V      |     V           V                    |
+           |               +------+   +-------+  |   +-----------------------------+    |
+           |               | Bash |   | curl  |  |   | MySQL                       |    |
+           |               +------+   +---|---+  |   +-----------------------------+    |
+           |                              |      V                                      |
+           |                              |   +-------------------------------------+   |
+           |                              |   + Apache html and JSON files          |   |
+           |                              |   +------------------------vanpower.html+   |
+           |                              |                                ^  *.json    |
+           +------------------------------|--------------------------------|----^-------+
+                                          |                                |    |
+                                          V                                |    via javascript
+                                      192.168.1.200 (the Arduino above)    |    |
+                                                                           |    |
+                                                                     Internet browser
+
+
 
 * Arduino does not have RTC clock with battery backup to retain time w/o power, therefore it gets it from NTP server
 ** it will update from NTP server regularly, and it is meant to be able to run w/o NTP for extended time as it as a drift calculator but there seems to be a bug in routine when unable to contact NTP server, the time gets corrupted.
@@ -74,7 +86,11 @@ Installation
    - have both files in same folder
    - File > Open | vanpower.ino
    - Change Wifi password in arduino_secrets.h
-   - NTP server is 192.168.1.201, please change it your NTP server.  public ones are on internet.
+   - NTP server is 192.168.1.201, please change it to your NTP server.  public ones are on internet.  I have variables for the 
+       IPAddress timeServer(129, 6, 15, 28); // time.nist.gov NTP server
+       IPAddress nistServer(129, 6, 15, 28); // time.nist.gov NTP server
+       IPAddress gpsServer(192, 168, 1, 201); // VanPi GPS NTP server
+     It is configured in the configureNetwork(), though I've coded it, that if Arduino's website is reachable, assume the NIST time servers are too.  Feel free to change for your own purposes.
    - Compile, and if there are any problems, goto Manage Libraries and load WifiNina, AdafruitEPD and AdaFruit GFX libraries, because the code expects them to be there.  Maybe also RTCZero, SD, ArduinoBLE libraries.  This wasn't a work project, so I wasn't keeping count.
    - finally connection Arduino to PC, make sure it is recognized and press Upload
    - power up arduino and try to connect to arduino's IP address.  It should be displayed on e-paper

@@ -761,6 +761,9 @@
 				//y=mx+b, (y-b)/m = x
 				return new xy((y- this.b)*this.mD/this.mN, y);
 			}
+			this.logString = function(){
+				return "y=("+mN+"/"+mD+")x+"+b+"...n="+n;
+			}
 			//return this;
 		}
         // https://www.phpied.com/3-ways-to-define-a-javascript-class/
@@ -785,6 +788,90 @@
                 return "";
             }
         }
+		function vertice(a,b) {
+			this.a = a;
+			this.b = b;
+			this.d = Math.sqrt((a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y));
+			//return { "x":x, "y":y };
+		}
+		function prims(listxy) {
+			var vertices = new Array();
+			var len = listxy.length;
+			for(var i=0; i<len;i++)
+				for(var j=0; j<len;j++)
+					if(i!=j && listxy[i]!=null && listxy[j]!=null)
+						vertices.push(new vertice(listxy[i],listxy[j]));
+			vertices.sort(function(a,b){ return a.d-b.d; });
+			len = vertices.length;
+			//var copy = Array.from(listxy);
+			var used = 0;
+			var graph = new Array();
+			for(var i=0; i<len; i++){
+				var tested = vertices[i];
+				var found = (graph.includes(tested.a)?1:0)+(graph.includes(tested.b)?1:0);
+				if(found<2) {
+					graph.push(tested);
+					used+=(2-found);
+					if(used>=listxy.length)
+						break;
+				}
+			}
+			return graph;
+		}
+		function stupidtraverse(graph){
+			var listxy = new Array();
+			var len = graph.length;
+			for(var i=0; i<len; i++) {
+				var edge = graph[i];
+				if(listxy.find(element => element==edge.a)==null)
+					listxy.push(edge.a);
+				if(listxy.find(element => element==edge.b)==null)
+					listxy.push(edge.b);
+			}
+			return listxy;
+		}
+		function minimizeStdev(listxy) {
+			var fit = new Array();
+			var stdev = new Array();
+			var best = -1;
+			var lowest = -1;
+			var copy = Array.from(listxy);
+			var len = listxy.length;
+			for(var i=Math.round(len*0.67); i<len;i++){
+				var line = fit[i] = leastsqrregression(copy);
+				var err = stdev[i] = Math.sqrt(variancefrommodel(copy,line)); 
+				if(err<lowest || best==-1){
+					best = i;
+					lowest = err;
+					console.log("" +i+ "/"+len+". best stdev "+err+" is " + line.logString());
+				} else
+					console.warn("" +i+ "/"+len+". skipped stdev "+err+" is " + line.logString());
+				copy.length--;
+			}
+			return fit[best];
+		}
+		function variancefrommodel(listxy,line){
+			var variance = 0;
+			var len = listxy.length;
+			for(var i=0; i<len; i++) {
+				var pt = listxy[i];
+				if(pt!=null) {
+					var predicted = line.y(pt.x);
+					var actual = pt.y;
+					var err = predicted-actual;
+					variance += err*err;
+				}
+			}
+			return variance/len;
+		}
+		//assumes valid datapoints are close to each other
+		//(mis)uses prim's algorthm as a cluster algorithm, and assumes prims will return a list of points that are far away from each other
+		function minlinearregression(listxy){
+			var graph = prims(listxy);
+			var reorderedxy = stupidtraverse(graph);
+			var line = minimizeStdev(reorderedxy);
+			return line;
+		}
 	</script>
 	<script>
 		var batteryzeroampcalibration = 0;
@@ -792,6 +879,10 @@
 		var batterysolarcalibration = new ymxb(1,1,0,144);
 		function adjustForCalibration(ydata) {
             return Array.from(ydata, (v,i) => Math.round(batterysolarcalibration.y(v)) );
+		}
+		function displayCalibration() {
+			var m = Math.round(10000 * batterysolarcalibration.mN/batterysolarcalibration.mD)/10000;
+			chart1.data.datasets[3].label = "Calibrated Battery mA=" + m + "x+" + batterysolarcalibration.b;
 		}
 
 		function getXHR() {
@@ -863,7 +954,14 @@
             chart1.data.labels = selectWhere(json, "timestamp", converter.toAbbrDateString, null);
             chart1.data.x = selectWhere(json, "timestamp", Date.parse, null); //not documented, but added ad-hoc
 			chart1.data.datasets[0].data = selectWhere(json, "battery_ma", null, null);
-			chart1.data.datasets[1].data = selectWhere(json, "solar_ma", null, null);
+			var uncalibratedsolar = selectWhere(json, "solar_ma", null, null);
+			var solarbaseline = uncalibratedsolar.reduce((a,b) => b==null ? a : a>b ? b : a, 0);
+			var calibratedsolar = Array.from(uncalibratedsolar, (v,i)=>v-solarbaseline);
+			chart1.data.uncalibratedsolar = uncalibratedsolar;
+			chart1.data.datasets[1].label = "Solar mA (last 24 hr) -" +(solarbaseline) + "";
+			chart1.data.datasets[1].data = calibratedsolar;
+			//chart1.data.datasets[1].label = "Solar mA (last 24 hr)";
+			//chart1.data.datasets[1].data = uncalibratedsolar;
 			chart1.data.datasets[3].data = adjustForCalibration(selectWhere(json, "battery_ma", null, null));
 
 			//hourly averages from another chart
@@ -944,6 +1042,7 @@
 
             //update ChartJs
 			var overall = json[0];
+			overall.length=24;
             var remap = new Array(24); //local back to utc hour
             for(var i=0; i<24;i++)
                 if(overall[i]!=null)
@@ -1132,7 +1231,7 @@
 			var intervals = Array.from(time,(v,i)=>i==0 ? null : {ms:(time[i]-time[i-1]), mA1:ma[i], mA2:ma[i-1], mA:(ma[i]+ma[i-1])/2, mAh:(time[i]-time[i-1])*(ma[i]+ma[i-1])/7200000, mv1:mv[i], mv2:mv[i-1], dv:(mv[i]-mv[i-1]), sma:(sa[i]+sa[i-1])/2 });
 			//console.log(intervals);
 			chart6.data.datasets[0].data = Array.from(intervals.filter(filterDischarge), (v,i)=> v==null ? null : new xy(v.mAh, v.dv)); 
-			if(chart6.data.datasets[0].data) {
+			if(chart6.data.datasets[0].data>1) {
 				var discharges = chart6.data.datasets[0].data.length;
 				var mintime = chart6.data.datasets[0].data.reduce((o,n) => n==null ? o : o==null ? n.x : Math.min(o,n.x), 2200000);
 				var regression = leastsqrregression(chart6.data.datasets[0].data.concat(Array(288).fill(new xy(0,0)))); 
@@ -1213,7 +1312,8 @@
 			var minah = chart7.data.datasets[0].data.reduce((o,n) => n==null ? o : o==null ? n.x : Math.min(o,n.x), 0)-1;
 
 
-			var regression = leastsqrregression(chart7.data.datasets[0].data); 
+			//var regression = leastsqrregression(chart7.data.datasets[0].data); 
+			var regression = minlinearregression(chart7.data.datasets[0].data); 
 			chart7.data.datasets[1].data = [regression.f(minah), regression.f(maxah)]; 
             
 			chart7.data.datasets[1].label = "The ammeter reading seems to be (" + Math.round(regression.b) + " mA) of true";
@@ -1221,6 +1321,7 @@
 
 			batteryzeroampcalibration = -regression.b;
 			batterysolarcalibration.b = -Math.round(batterysolarcalibration.mN*regression.b/batterysolarcalibration.mD);
+			displayCalibration();
         }
 		function processCalibrationSolarStd() {
 
@@ -1229,7 +1330,7 @@
 			var batteryamp  = chart1.data.datasets[0].data;
 			var solaramp    = chart1.data.datasets[1].data;
 			var batteryvolt = chart2.data.datasets[0].data;
-			chart8.data.datasets[0].data = Array.from(batteryamp, (v,i)=> v==null ? null : new xyz(batteryamp[i], solaramp[i], batteryvolt[i])).filter(function(minute) { return minute.y>500});
+			chart8.data.datasets[0].data = Array.from(batteryamp, (v,i)=> v==null ? null : new xyz(batteryamp[i], solaramp[i], batteryvolt[i])).filter(function(minute) { return minute.y>900;});
 			//create regression model of how battery charge sensor reads, to solar sensor and assume solar is correct
 			var regression = leastsqrregression(chart8.data.datasets[0].data); 
 			//create a line representing the adjustment the battery reading has to make, to be in same calibration as solar sensor
@@ -1243,6 +1344,7 @@
 			batteryampcalibration = regression.mN/regression.mD;
 			batterysolarcalibration.mN = regression.mN;
 			batterysolarcalibration.mD = regression.mD;
+			displayCalibration();
         }
 
 

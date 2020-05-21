@@ -8,6 +8,21 @@ echo $(date) $1
 #/usr/sbin/ntpdate -d -q 192.168.1.201
 
 # read free memory and log
+if [ $1 == "cleandb" ]; then
+   echo "SELECT (SELECT count(0) FROM memory_status_import)+(SELECT count(0) FROM instant_read_import)+(SELECT count(0) FROM minute_by_minute_import)+(SELECT count(0) FROM daily_avg_on_hour_import)+(SELECT count(0) FROM ntp_ntps_import)+(SELECT count(0) FROM rtc_vs_ntp_import);" | mysql --defaults-extra-file=$USERPASS_FILE vanpower
+   echo "during"
+
+   echo "SELECT MAX(id) INTO @tempid FROM memory_status_import;SELECT @tempid;DELETE FROM memory_status_import WHERE id<(@tempid)-144000;" | mysql --defaults-extra-file=$USERPASS_FILE vanpower
+   echo "SELECT MAX(id) INTO @tempid FROM instant_read_import;SELECT @tempid;DELETE FROM instant_read_import WHERE id<(@tempid)-144000;" | mysql --defaults-extra-file=$USERPASS_FILE vanpower
+   echo "SELECT MAX(id) INTO @tempid FROM minute_by_minute_import;SELECT @tempid;DELETE FROM minute_by_minute_import WHERE id<(@tempid)-144000 AND error IS NOT NULL;" | mysql --defaults-extra-file=$USERPASS_FILE vanpower
+   echo "SELECT MAX(id) INTO @tempid FROM daily_avg_on_hour_import;SELECT @tempid;DELETE FROM daily_avg_on_hour_import WHERE id<(@tempid)-144000;" | mysql --defaults-extra-file=$USERPASS_FILE vanpower
+   echo "SELECT MAX(id) INTO @tempid FROM ntp_ntps_import;SELECT @tempid;DELETE FROM ntp_ntps_import WHERE id<(@tempid)-144000;" | mysql --defaults-extra-file=$USERPASS_FILE vanpower
+   echo "SELECT MAX(id) INTO @tempid FROM rtc_vs_ntp_import;SELECT @tempid;DELETE FROM rtc_vs_ntp_import WHERE id<(@tempid)-144000 AND error IS NOT NULL;" | mysql --defaults-extra-file=$USERPASS_FILE vanpower
+   echo "database cleaned, left"
+   echo "SELECT (SELECT count(0) FROM memory_status_import)+(SELECT count(0) FROM instant_read_import)+(SELECT count(0) FROM minute_by_minute_import)+(SELECT count(0) FROM daily_avg_on_hour_import)+(SELECT count(0) FROM ntp_ntps_import)+(SELECT count(0) FROM rtc_vs_ntp_import);" | mysql --defaults-extra-file=$USERPASS_FILE vanpower
+fi
+
+# read free memory and log
 if [ $1 == "freememory" ]; then
    TMP_FILE="/run/shm/freememory.html"
    CSV_FILE="/run/shm/freememory.csv"

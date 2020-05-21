@@ -20,9 +20,11 @@
 # For more information see the manual pages of crontab(5) and cron(8)
 # 
 # m  h  dom mon dow   command
-*    *  *   *   *     /home/bob/vanpowerscripts/prod/pollpowerarduino.sh freememory >> /var/log/pollpower.log 2>&1
-*    *  *   *   *     /home/bob/vanpowerscripts/prod/pollpowerarduino.sh instant  >> /var/log/pollpower.log 2>&1
-*/10 *  *   *   *     /home/bob/vanpowerscripts/prod/pollpowerarduino.sh intervalaverages  >> /var/log/pollpower.log 2>&1
-5    *  *   *   *     /home/bob/vanpowerscripts/prod/pollpowerarduino.sh hourlyavgmah  >> /var/log/pollpower.log 2>&1
-10   1  *   *   *     /home/bob/vanpowerscripts/prod/pollpowerarduino.sh ntp  >> /var/log/pollpower.log 2>&1
-10   0  *   *   *     /home/bob/vanpowerscripts/prod/pollpowerarduino.sh calibration
+*    *  *   *   *     /home/bob/vanpowerscripts/prod/pollpowerarduino.sh freememory >> /home/bob/vanpowerscripts/prod/poll.log 2>&1
+*    *  *   *   *     /home/bob/vanpowerscripts/prod/pollpowerarduino.sh instant  >> /home/bob/vanpowerscripts/prod/poll.log 2>&1
+*/10 *  *   *   *     /home/bob/vanpowerscripts/prod/pollpowerarduino.sh intervalaverages  >> /home/bob/vanpowerscripts/prod/poll.log 2>&1
+5    *  *   *   *     /home/bob/vanpowerscripts/prod/pollpowerarduino.sh hourlyavgmah  >> /home/bob/vanpowerscripts/prod/poll.log 2>&1
+10   1  *   *   *     /home/bob/vanpowerscripts/prod/pollpowerarduino.sh ntp  >> /home/bob/vanpowerscripts/prod/poll.log 2>&1
+10   0  *   *   *     /home/bob/vanpowerscripts/prod/pollpowerarduino.sh calibration  >> /home/bob/vanpowerscripts/prod/poll.log 2>&1
+20   0  *   *   1     sudo mysqldump --databases vanpower  | 7z a -si /home/bob/vanpowerscripts/prod/vanpower.bak.sql.7z
+30   2  *   *   2     /home/bob/vanpowerscripts/prod/pollpowerarduino.sh cleandb  >> /home/bob/vanpowerscripts/prod/poll.log 2>&1
