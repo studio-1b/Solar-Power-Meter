@@ -1,0 +1,593 @@
+
+[-] add a function pointer for:
+-resetting samplesetMillis
+-getting the previous hour's index
+-above frame work built... need to integrate
+ - Im not even gonna bother.  If wifi goes kaput, it goes kaput.  
+   - W/o an sd card to log data, it's true value as data logger is lost when the network goes down.
+
+[-] bluetooth control?
+    I think I'm gonna remove support for this.
+
+[X] ntp server
+[-] http response of data in a stream... (have the datalogger poll)
+[-] show watt hours| instead of ah? (data logger can do math)
+    why bother
+[-] hourly curve (show only graph| the graph will show 24 hours eventually)
+added a debug mode for 24 hour aveerage
+	Need to implement
+[X] make the curve show further back
+	... does this mean the data shown will be less current?
+
+[X] average ah curve on that part of day on graph
+
+[-] add button| to show hourly
+    - why bother.  I can't think of a reason why I need to see this, in real life
+
+[X] remove watts?
+- unless you want to see waste... 18v x7 vs 14v x7
+
+
+              
+[X] Need to test w/o network available...
+    Wifi goes out all the time here.  If it reconnects, it will run out of memory and might crash.  
+    The debug mode halts when stack and heap gets within 2k, but that won't be what is in van
+[X] turn off all debugging modes for production in van
+
+[-] functional past solar amps
+[-] do you want max min for solar amps?
+    Useful but im running out of space.   better to log it in pizero
+[X] current solar amps
+[X] current solar voltage
+
+[X] Plus the web server stops responding sometimes...
+	Don't understand why| bc NTP doesn't stop responding...
+		I'm going to disable the restart of web server in the wifi re-connect sequence.  
+		It might not care what wifi is connected to
+		I haven't had a web crash| since I made the adjustment
+[X] it crashes after 2 hours... why?
+	it crashes after a sensor read has finished...
+	after 4:14a displayed
+	Guess right now| is Wifi connect/reconnect triggers a series of events that lead to memory overwrites of critical
+		I haven't had a crash| since I re-coded the wifi re-initialization routine
+
+[X] make the block dash bresham| with solar voltage
+[X] make battery voltage dotted with circles of 1r| every 1/4 pixels
+[X] make the solar amps| dotted| bc it's always positive and should be always just above what the amp graph for battery shows
+[X] The website /powermeter pulls from wrong pin, to display solar amps
+[X] graph wasn't displaying right data for solar amps
+
+[ ] Now:
+The samples are taken repeatedly and aggregated in single value until minute hand is 0
+	then it checks if hour hand is 0| and adds to hourly summary
+	but on each minute| the graph is shown at same time| the minute value added to graph
+Eventually:
+The samples are taken repeatedly and aggregated in single value until minute hand is 0
+	then it checks if hour hand is 0| and adds to hourly summary
+    Does 10-min aggregate overflow?
+	every 10 min| the graph is shown at same time| the 10-minute aggregate value added to graph
+Add counter to add to graph, every n-minute in hour
+Right now, graph and webpage shows every 2min, for 144 data points for 244min.  That's 3 hours of data.  
+I can make this 24 hours, by increasing it for 10min of 144 data points.
+
+[X] Linear regression actually did overflow	
+
+[X] the timespan formatter shows 36 hours?  As in 1day:36hours:26min.
+
+[X] add the fuse on the ground line of the direct voltage sensors
+[X] add new potentiometer
+
+[X] how to span the hourlyAmpGraph[] according to the current timespan on the graph
+    ... how about just check each x-value which is time, to hourly graph
+
+[X] 24hr data needs to be initializaed at 1.676v
+
+[X] The discharge graph shows 212/300, while 2.739 net aH. But I can't remember where it started last night, when it initialized at 12.3v.
+    Need to double check this.
+    It shows 191/300 now... I know there 4Ah in this battery
+    finished with 195/300 (i reversed the sensor) and 3.604 Ah dispensed.  51Wh on label or 4.25Ah@12v.  close, but also not close.
+      but it is within magnitude.  It will show if battery has discharged 50%.  Etc.
+    So close enough
+
+[X] The NTP data seems to have a problem after the 1st sync.  
+    The actual data(NTP offset) seems to be always closer to the previous data index's expected data (rtc offset).
+    It is as if it is computnig offset, from a previous NTP response.
+    For some reason, NTP sends multiple UDP NTP packets and the Arduino buffers it all.
+    I process one packet, and call .flush() but there is still data in the buffer from previous request
+    manually processed all packet in the buffer, after NTP is complete...
+
+
+1.2 /3.3
+1.24 *5 = divided
+12v line has max of 16.5
+w/ /5
+so 12v = 2.4v
+
+18v line has max of 
+w/ 180/33
+so 12v = 2.2v
+
+for a line ration of 0.916 
+after potent should be 1.118
+
+Solar 
+10.81 multimeter on battery
+2.162 multimeter on divider lead
+1.823 on potentiometer
+  for 0.84181313 ratio
+1/5 * 1.823/2.162 = 1.823/(5*2.162) = 1.823/10.81 = 1/5.929786
+
+
+
+[X] On load, the Ah for graph and net, differ by factor of 2.  This shouldnt happen...
+    ...It already was independent of the interval length selected by checking dates in the data
+
+[X] check the http url's for accuracy
+
+[X] history is only 60 lines long.  Is that useful?
+    now same as graph
+[X] the graph shows more data, than any web page served.  This has to be addressed.
+    now same as graph
+
+[X] the hourly aggregation might have a problem.  I noticed the sums quickly add up for current hour
+    also, this probably can't be helped but the sums for the current hour seem to reflect immediately.  Bc they should all stay zero, yet it reflected a big negative number just a few miutes ago
+    they are not supposed to reflect until hour is completed
+[X] hourly, the totals show wrong amount for converted, though the sum and counts look good.
+    is probably fixed
+    NOpe, still overflowed
+    Not just overflowed.  The hours stored are wrong... in UTC... that's right actually... maybe I add both
+    overflowed bc the field type in aggregate is unsigned, you moron.
+
+[X] Wifi restarts, goes makes HTTP requests, which seems to be the source of a memory leak.  
+    And the arduino halted at less than 2k free, which I instructed it to do, so I can examine the cause.
+    I'm guessing 2 wifi restarts is all it has in it.  If it reconnects to same place, maybe I shouldnt redo the http request to verify internet and NTP connectivity.  
+      Which quite frankly takes up a lot of RAM for "fun" to display the images.  
+      The SRAM consumed is the buffers I need to create on the stack, 
+      but the free memory is either eaten up by a constantly growing heap that never reduces, 
+      or the stack is unepectedly growing bc passing arrays isn't by pointer.
+    The debugging trace indicate the stack and heap stay at reletively the same place for a long time.  Until wifi disconnects and HTTP requests the "low memory threshold to drop".  whether this is the heap or the stack is unknown.  Or if the new "stable" heap size is actually too large for the incoming HTTPS buffer.
+    I haven't seen a halt due to low memmory for a disconnect, last night with a lot of wifi interference, so... this might be fixed with all the String to char[] changes.
+    There is still a memory leak for some reason when NTPS gets called.  but it is't losing a constant amount.  There apparently has to be the right sequence of events to occur.
+
+[X] zero drift (no voltage on sensor, but not floating) is -90, so changing fudge from -1700 to -1701 
+    drift got worse, sp changing fudge from -1701 to -1699
+    drift now steady at -5 to 5.  after I plug in DC power, it tends to stay in negative -4 to -5.  But otherwise, floated from -4 to 4.
+    The -4 to -5 drift seemed to be temporary, it's back to floating between 4 and -4.  So I'm saying this is fixed.
+    Actually it wasn't plugged in.  i didnt notice the test battery got disconnected.
+      With power, which is how it will be, it shows a steady reading of 80.  changing fudge back to -1700
+    Last adjustment made it steady at -29 to -41, which is better than around 80, so...
+
+[X] ntp still causing a memory leak
+    every time NTPS gets called the first time, I lose 1500 bytes of memory  that's a lot
+    right now, steady at 8295 after both NTPS and HTTP is invoked alternately
+    after converting a bunch of strings to char[], it holds steady in same test at 10331
+    created some more leeway by converting string to char[].  
+        actually initially servicing an NTPS request, still costs 1.5k that is never regained.  
+        I don't know where this was from.  
+        I initially thought the inline strings were being instantiated dynamically during execution, but kept.  
+        But I moved all the string to global, and executed them and same error occurs.  
+        Plus now, there is less "global heap space" after start, bc it's occupying the heap right away and never gets released.
+        BUT there seems to be less "lost" during that initial servicing of the NTPS.  
+           Servicing a HTTP request also loses some bytes after initial servicing
+           And making a HTTP request also loses some bytes after initial servicing
+           but NTPS and servicing HTTP is expeected to be much more frequent.  And they stop losing bytes, unless a different sequence gets throw in, like a re-connection to AP.  Something is locking in the heap level.
+
+Time is End of formattedlocal() Free memory=(Lowest memory detected=3743)10531
+Sat 12/7/2019 1:15:50 PST(-8)
+checking for HTTP request
+checking for NTP request
+Checking if NTP request received on port 123...
+No NTP request received
+L1 Sampling
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+Check if Aggregating L2 into L3 and L2 reset
+Ah calculation parts below:
+1.existing aggregate, sum=206619 count=98 avg=2108 volts=1675 measured=-100
+2.new sample, sum=632351 count=300 avg=2107 volts=1674 measured=-200
+Aggregating L1 Samples into L2
+End of loop() Free memory=(Lowest memory detected=3743)9343
+address of last newly allocated string=536903424
+address of last newly allocated c_string=536888456
+address of long variable that should be allocated on stack=536903408
+new aggregate, sum=208726 count=99 avg=2108 volts=1675 measured=-100
+
+amp-hour drift/reading, if on zero amps the entire uptime, is:-90
+loop() complete
+Next loop
+Free memory=(Lowest memory detected=3743)9343
+Checking clock...OK
+Time is End of formattedlocal() Free memory=(Lowest memory detected=3743)9023
+Sat 12/7/2019 1:15:51 PST(-8)
+checking for HTTP request
+checking for NTP request
+Checking if NTP request received on port 123...
+
+Received UDP packet size 48
+From 192.168.0.76, port 54595
+  LI, Vers, Mode :E3
+  Stratum :0
+  Polling :3
+  Precision :FA
+packet dump:
+E303FA
+0100
+0100
+0000
+0000
+0000
+0000
+0000
+0000
+0000
+E195EC49
+1E3529E5
+
+Local time is =End of formattedlocal() Free memory=(Lowest memory detected=3743)8927
+Sat 12/7/2019 1:15:51 PST(-8)
+UTC Time in seconds=1575710151
+Drift of clock calculated is=2
+UTC Time sent=1575710153
+Time sent is supposed to be =3784698953
+byte1=E1
+byte2=95
+byte3=EC
+byte4=49
+L1 Sampling
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+Check if Aggregating L2 into L3 and L2 reset
+Ah calculation parts below:
+1.existing aggregate, sum=208726 count=99 avg=2108 volts=1675 measured=-100
+2.new sample, sum=632210 count=300 avg=2107 volts=1674 measured=-200
+Aggregating L1 Samples into L2
+End of loop() Free memory=(Lowest memory detected=3743)9343
+address of last newly allocated string=536903424
+address of last newly allocated c_string=536888456
+address of long variable that should be allocated on stack=536903408
+new aggregate, sum=210833 count=100 avg=2108 volts=1675 measured=-100
+
+amp-hour drift/reading, if on zero amps the entire uptime, is:-90
+loop() complete
+Next loop
+Free memory=(Lowest memory detected=3743)9343
+Checking clock...OK
+Time is End of formattedlocal() Free memory=(Lowest memory detected=3743)9023
+Sat 12/7/2019 1:15:52 PST(-8)
+checking for HTTP request
+checking for NTP request
+Checking if NTP request received on port 123...
+No NTP request received
+L1 Sampling
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+Check if Aggregating L2 into L3 and L2 reset
+Ah calculation parts below:
+1.existing aggregate, sum=210833 count=100 avg=2108 volts=1675 measured=-100
+2.new sample, sum=632375 count=300 avg=2107 volts=1674 measured=-200
+Aggregating L1 Samples into L2
+End of loop() Free memory=(Lowest memory detected=3743)9343
+address of last newly allocated string=536903424
+address of last newly allocated c_string=536888456
+address of long variable that should be allocated on stack=536903408
+new aggregate, sum=212940 count=101 avg=2108 volts=1675 measured=-100
+
+amp-hour drift/reading, if on zero amps the entire uptime, is:-90
+loop() complete
+Next loop
+Free memory=(Lowest memory detected=3743)9343
+Checking clock...OK
+Time is End of formattedlocal() Free memory=(Lowest memory detected=3743)9023
+Sat 12/7/2019 1:15:53 PST(-8)
+checking for HTTP request
+checking for NTP request
+Checking if NTP request received on port 123...
+No NTP request received
+L1 Sampling
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+Check if Aggregating L2 into L3 and L2 reset
+Ah calculation parts below:
+1.existing aggregate, sum=212940 count=101 avg=2108 volts=1675 measured=-100
+2.new sample, sum=633276 count=300 avg=2110 volts=1677 measured=100
+Aggregating L1 Samples into L2
+End of loop() Free memory=(Lowest memory detected=3743)9343
+address of last newly allocated string=536903424
+address of last newly allocated c_string=536888456
+address of long variable that should be allocated on stack=536903408
+new aggregate, sum=215050 count=102 avg=2108 volts=1675 measured=-100
+
+amp-hour drift/reading, if on zero amps the entire uptime, is:-90
+loop() complete
+Next loop
+Free memory=(Lowest memory detected=3743)9343
+Checking clock...OK
+Time is End of formattedlocal() Free memory=(Lowest memory detected=3743)9023
+Sat 12/7/2019 1:15:54 PST(-8)
+checking for HTTP request
+checking for NTP request
+Checking if NTP request received on port 123...
+No NTP request received
+L1 Sampling
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+End of getsample() Free memory=(Lowest memory detected=3743)9303
+Check if Aggregating L2 into L3 and L2 reset
+Ah calculation parts below:
+1.existing aggregate, sum=215050 count=102 avg=2108 volts=1675 measured=-100
+2.new sample, sum=632414 count=300 avg=2108 volts=1674 measured=-200
+Aggregating L1 Samples into L2
+End of loop() Free memory=(Lowest memory detected=3743)9343
+address of last newly allocated string=536903424
+address of last newly allocated c_string=536888456
+address of long variable that should be allocated on stack=536903408
+new aggregate, sum=217158 count=103 avg=2108 volts=1675 measured=-100
+
+amp-hour drift/reading, if on zero amps the entire uptime, is:-90
+loop() complete
+Next loop
+Free memory=(Lowest memory detected=3743)9343
+Checking clock...OK
+Time is End of formattedlocal() Free memory=(Lowest memory detected=3743)9023
+
+[-]  3.26 is vin on arduino vs expected 3.3 or 98.7% accurate
+    Not a problem.  Already assumed some calibration needed for each device.
+
+[X] added code to look for a website at 192.168.1.201
+    if so, use sets it's address to a static 192.168.1.200
+    So correct startup sequence is... have vanpi up.  Then startup "vanduino".
+[-] should poll to see if vanpi website is up with a page NOT ON ARDUINO.
+    if it is, change to 192.168.1.201 ... is it reliable?  
+    meaning, what if network drops, reconnects 
+        but now 2 machines with 192.168.1.201?
+    if not, change to 192.168.1.200... there is no way of changing back unless vanpi has 3rd ip address
+    NO... there is no way of changing it back...  too complicated without mUDP negotiating for an ip address
+
+[X] there is something wrong with my logic.  12v is 12v.  regardless of the divider.  the divider simply gives a bigger range
+    the same voltage is reading 12.2v actual and on solar which is supposed to have a greater divider, shows 14.51.  It should read the same
+    I don't understand what happened.  I read 2.06v on the multimeter.  which is correct for a 6:1 divider on 12.2v.  The correct mapping setting is applied to the correct
+
+volt sample=12155, from volts=2431, readings=3105
+sol volt sample=14457, from volts=2438, readings=3113
+Check if Aggregating L2 into L3 and L2 reset
+Aggregating L1 Samples into L2
+volt for this min/L2=12150
+solar volt for this min/L2=14457
+
+But then it suddenly started saying 12v
+volt sample=12210, from volts=2442, readings=3119
+sol volt sample=12061, from volts=2034, readings=2612
+
+and back again to 14v... so it's a physical connection problem...
+
+plus A4 always has a voltage 2.86v, for some reason I cant see.
+A5's solder is bad bc the 2.06v i read on breadboard isnt on the pin, but worse it reads 3.3v on the pin, which is why it reads 4095 all the time
+https://8bitwork.com/2019/05/26/arduino-launches-arduino-nano-33-iot-board/
+A4 and A5 apparently are for i2c bus
+And it wasn't a physical problem.  The voltage divider was misconfigured.  It's corrected.
+
+[X] the abs function for the solar doesn't seem to be working
+    abs might be causing an overflow in extreme situations that shouldnt occur in real life
+[X] added a different calibration for the other ammeter, with long cable meant for battery
+[X] the NTP and reconnect screen may take up to 10min to refresh, with longer time.  Which is a lot of time of useless data...
+[X] increasing the shown interval is probably causing a overflow
+      300 samples in each average
+      average takes second
+      60*10 averages in 10min, or 300.  it should be overflowing..  Also find a way to reduce to 300.
+      every time it goes over sample count, it divides the count and sum by two.  that way, the 2nd half of data is always twice weighted vs 1st half.
+[-] dotted, doesn't look dotted
+    I can't tell what is wrong there
+[X] A lot of time passes now between NTP refresh and redraw of the graph.  Added function to redraw 15sec after NTP re-sync.
+[X] NTP drift correction was severely wrong after 24 hours.  But the math was right.  The linear regression matched.  There was a data point that was WAYYYYY off and threw the regression way off.
+    It showed an expected offset of 26000 seconds, but a real offset of 123 seconds.  I don't see how that's possible.
+    Right now I'm assuming the datapoint was added there, after the NTP client was unable to contact a proper NTP server.  In that case, the client adjusts the RTC itself using drift correction.
+    But doesn't update the [datetimeAtNTP] variable which is used as the time drift is calculated from.  I'm recoded it to ignore drift correction unless 2 straight NTP client requests are serviced.
+    however, gut feeling wise, it doesn't seem possible for 123 and 26000 to be computed from the same [datetimeAtNTP] variable b/c expected = "rtc time"-[datetimeAtNTP], actual = "ntp said time"-[datetimeAtNTP].  It shouldnt be possible.
+    anyway, using the arduino to sync the camera clocks doesn't seem necessary at this point.
+[-] screw the breadboard onto case.  the tape probably wont be permanent.
+    yeah, the tape has to work.  there is nothing to screw to.
+[X] the epaper display needs a better case
+[X] how are you going to add the voltage probe to 2nd amp meter?
+[X] 2nd amp meter needs it's power leads connected to jumpers
+[ ] do you want to fix the voltage probes to the case to reduce possibility of disconnect/shorts
+[X] find a way to attach the epaper somewhere
+    hook it on the power cord for arduino... this probably will bite me in ass one day, as the movement will probably jolt it loose.
+[X] I accidentally connected positive to a negative lead and caused a short which blue a fuse in the power device im using.
+    However, the fuse on the lead connecting to arduino ground seems intact.  But might have been damaged bc the voltage no longer reads correctly.
+    Multi-meter reads 11.97v on the temporary power supply.
+    Damn arduino now reads 12.600
+    It's just easier to change the calibration to move it up 0.2v
+[X] something has changed for the solar ammeter calibration, too.  At least for solar.  0amp on ammeter, is showing at 1400mA on arduino.
+    I could write a resetcalibration() but I need to run it at zero amps for a little while to get the real state.  and then,I'll have to do this again, bc it can't store state
+    1676-1686 results in average reading of 180mA
+    1676-1688 results in average reading of 280mA
+    1676-1684 results in average reading of 180mA
+    1676-1680 results in average reading of 580mA
+moving the average before abs
+    1676-1686 results in average reading of -32mA... that's as close as it's possible
+    and 0.5A 0.6A results in arduino reading between 500 to 800mA.  Close enough.
+    ... rechecking zero calibration on battery ammeter...
+   zero amp on battery ammeter is now averaging 1272 on arduino
+   1676-1685 1272mA
+   1676-1700 -2760mA
+   1676-1690 -1800mA
+   1676-1680 -700mA
+   1676-1676 -230mA to -388
+   1676-1673 -110mA
+   1676-1672 -40mA   ... I think that is pretty much as close as possible to zero.
+   And at 5amp draw, arduino reads -500 to -800... good enough
+[X] undo the +200mV, and change the voltage calibration readings
+    2474-2474 reads 12105, actual=11.96
+    2474-2500       11980
+    2474-2502       11965 - 11970 ...close enough
+[ ] vanpi... get gps and NTP working.
+[ ] check power usage of both arduino and vanpi
+
+[ ] ideal use case
+    A. show graph of battery power and charge status on webpage
+       problem.  arduino will only store 24hours.
+       does it need a solution?  Is this the vanpi or surface VM that will take care of this
+    B. The cameras need always-ON NTP
+       Options:
+         1. Surface gets moved upstairs on grid power. Cameras need Wifi bridge hop to get NTP data.  Surface is no longer in van, to serve as 5v video monitor
+         2. Vanpi gets up and running on van power.  The raspberry pi is eating into van power.  It has a less stellar reliability record than the PC which is built more robustly but takes 20x more power.
+         3. Implement the staggered NTP system, where arduino serves dates to cameras.  But gets it's date from Vanpi.  But the arduino only will use Vanpi, if vanpi is up during boot.  I don't see this as advantage.  and Van pi needs to be on or rebooted in concert w Vanduino.
+            the cameras only support single NTP or I can stagger support.
+[X] Remember to reconfigure for Roadtrip Wifi network
+
+[X] 2mos and counting on this project.  These sleep disruption attacks are taking quite a toll.  This should have been 3-4 week project.
+    Installed on 12/14/2019... crashed once.  24 hours later.  unknown cause.
+
+[X] Some of the NTP datapoints are way way off.  the GPS NTPS has occaision problems.
+    don't apply regression, if r-value is too big
+    - or remove the data items from the array, whose error is bigger than 10% or the R-value.
+    - the problem is once the bad data is in there, it creates a bad model.  It's like a feedback in a loudspeaker, if you don't do it right.  It'll just keep removing the wrong "bad data".
+    - bc a big enough data difference will pull the model off.  then the difference between all the good points are fucked up too.  perhaps more than the model and the bad points, which you want to remove.
+    - I'm guessing removing a datapoints one by one and checking the r2 is the best option in a low power device.
+    - comprehensively, taking different combinations and checking the higher r2 probably produces the best data model for future predictions, if the outliers won't continue.
+      It's a compterized version of "selectively taking desired data points".  Except we are assuming electronix error causes the weird outliers.
+      - perhaps it's better to fix the cause of the outliers...
+    - Fixed a buffered UDP problem
+
+[X] The GPS NTPS stalls sometimes and returns the wrong date.  after 24hours, the arduino only updates once a day
+    add a /timeresync, bc for some reason it thinks it's midnight and it's 2:30a.
+    - you might want to limit it to run once every 10min.
+
+[-] ntp is also returning the wrong date occaisionally when the NTPD crashes on the GPS server
+    -you might want to, not allow a time change > 5min, without a second opinion... of course, there is no second opinion...
+    - I'm gonna assume GPS NTP problems are going to be a lot fewer now.
+    - And I should be able to do resync
+[X] add a field for the first sync time, since boot.  This will make storing the NTP data more coherent
+
+[X] fixed the translation formula for hourlyAmpGraph in addToGraph()
+
+[ ] It always seems to crash on 2nd day, at around 3:30a.
+    Is it b/c the reboot is at 3:30, and the wrap around causes a problem the send time around?
+    actually wifi crashes.  And never reconnects.  So I can't get the data out.
+[ ] lower the HTTP request buffers to 2K each... The fun, isn't worth a low memory condition.
+
+[ ] 6. Can we make the 10-min interval average, not be late weighted.  It's probably affecting the Ah calculation when using high amp charging.
+
+[-] can we reduce fractions, using the line equation?
+       draw line until 1000*N/y = 1000*D/x
+    probably, but I have purpose for this except to prevent overflow by reducing fraction to the lowest possible values
+      and in my current application, this causes 2 problems: rounding error, or weighting issues
+   so this will have to wait
+
+    do we need to?
+[X] 7. draw graph wifi status icon
+      big X
+[ ] 8. Why doesn't the wifi re-connect routine work?
+ axis, show what the overall average is (/12)
+[X] 2. Show a 365 day solar and battery average amps
+[ ] 4. Charging the car doesn't seem to increase the battery level on the graph
+   ...you might want to graph the instant read and find out why it's not being updated
+   ...it looks like it's using the last sample as the interval average, not the 10-min interval average... wtf?
+
+[ ] For some reason, the ammeter went completely off the deep end at 11a 12/23 today.
+    It indicated a sensor read of 6amp solar charge, at same time increasing the battery dischage from 1Amp charge to 2amp discharge
+    I reset it, and it returned to indicating a 300mA solar charge and 200mA discharge.  Which is back to historical levels.
+    When I went downstairs, the sensors were not indicating 6A from solar or 2amp discharge from battery.
+    So the conclusion is that the arduino program got corrupted, and was returning a significant multiple to both the solar charge and discharge for some reason.  From the look of it, and where it reset to, it looks like x5 to x10.
+    Forgot to get ADC readings first, to see if the ADC was returning something screwy.  But I was more concerned about a potential 10amp flowing thru the circuit, though it seemed impossible from the conditions outside and historically.
+    ... No cause right now ...
+    It's doing it again this am.  This time, im reading the sensor manually and it's indicating 1.9A in thru solar and 1.9amps out of battery
+     BUT arduino is claiming 6amps in thru solar.  -2amps out of battery.
+     ADC is reading on A1(battery) 2054 / 4095 = 0.50158 = 1.65524v = delta 1.676 = 0.02076*100 = 2.076
+                       A2(solar) 2019 / 4095 = 0.493004  = 1.62703v = delta 1.676 = 0.04897*100 = 4.897
+    which arduino interprets as 6amp solar input. -2A battery discharge.
+
+[-] also the [battery full] detect, which resets the new estimated capacity was discovered to have a bug in high discharge
+    I was assuming there was no way the battery could be in discharge at 13v.
+    ...actually, it is impossible for the battery to be in discharge with the circuit at 13v...
+    ...forget it, it's not a bug... just the above error...
+
+[X] datetime of first NTP connect had a bug...
+[X] the drift recording rolled over >48.  It should have rolled over >47.
+    This might be causing some memory corruption around 48 hours.
+
+[ ] The network is still being dropped.  Meaning the arduino stops responding to HTTP commands.
+    I can't tell if the NTP is still operational.
+    I'm thinking about making a HTTP poll to 192.168.1.201, and checking the apache logs to see if it still maintains client connectivity.
+    The arduino stopped responding at 6am.  Last data recorded.  I checked the arduino at 4p and it had correct time on the e-paper, and full day of data on the graph.
+[ ] Also state of charge pct estimator is still not "increasing" during a charge cycle.  
+    I might want to disable this entirely, as dropping to zero might cause a problem in future.
+
+
+
+Linux work on other computer
+[X]  1. You need to change the database to store hourly average, divided by month
+then return the hourly data as first 24 as overall daily average,
+then divided by part of hourly average, divided by overall stacked
+... see if you can show a stacked graph AND non-stacked bar graph, side by side
+OR
+stack all the monthly averages, and have a second y
+[X] 5. Graph the RTC/ntp performance
+     so we can see if the data is being recorded correctly
+[X] change trigger daily_avg
+    so that month is saved
+[X] expected hour Ah graph doesnt shift
+
+[X] Also graph how much discharge it takes to return to original valtage, once a continuous run has occurred.
+    meaning from when it goes from discharge to charging - record Ah until discharging again
+            from when it goes charging to discharge - record Ah until returning to same voltage before the charging, at the discharge rate indicated...
+    ie. if it was discharging 500mA for hours, then chargin at 1A for 2 hours, then return to discharging at 500mA, how long before it returns to last voltage recorded at discharging 500mA?  What is average amperes for that period?  What is the estimate Ah for that period?  How well does it correlate to how much Ah was added during charging?   
+[X] Also graph when discharge is occurring, and the voltage drop from previous period, vs the discharge amperage
+    See if there is a relationship
+    Last 2 was accomplished by graphing daily avg amps (not Ah, but that multiplies by 24) vs change in voltage in same period
+    Midnight, the battery should not be charging, and should be at same level of discharge each night
+    The y-intercept should be approximation of where true zero is supposed to be
+
+
+Hardware
+[ ] 3. Do you want to guess where your parasitic power draw is coming from?  I don't think it's the inverter and it's physical off switch...
+       I've removed everything that I know, is on.  And still there is 500mA parasitic draw.
+       500mA reading on arduino shows as 0.2 on the ammeter sensor... It might just be a sensor calibration issue, near zero.
+         However, with no load, it is still showing a voltage drop, probably the surface charge?
+         Maybe I can graph discharge rate and voltage drop
+       Now with wifi router reconnected to the solar circuit, that circuit shows 0.5 amp draw on the ammeter.  +0.3A.
+       But arduino reads 800mA
+       Maybe the arduino reads high 300mA.
+       - without the cameras, the draw according to arduino is 600 and 700mA.
+       - one camera added, according to arduino it is a consistent 800mA draw.
+       - both cameras on, according to arduino it is a consistent 1000mA draw.
+       - the same camera upstairs draws 430mA at 5v, with the IR lights on.  200mA with IR lights off.  
+         So at 12V keeping same wattage, is half that. 200mA to 100mA.
+         The cameras on the car seem to produce a much higher amperage draw.
+
+
+
+
+
+[ ] other photo
+read bmp or jpg
+create a graph of center of mass white pixels representing the motion box
+show graph of movement of the center of mass
+
+copy the website code
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
